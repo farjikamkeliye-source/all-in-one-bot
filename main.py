@@ -5,7 +5,7 @@ import requests
 import telebot
 import yt_dlp
 
-# Flask app taaki Render ka port error na aaye
+# Flask app taaki Render par port error na aaye
 app = Flask(__name__)
 
 @app.route('/')
@@ -16,8 +16,8 @@ def run_web():
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
-# Aapka Telegram Bot Token
-TOKEN = "8852793555:AAHeGoB66uD-R0_J37z4KOsBsunag2_Xwd4"
+# Aapka Naya Telegram Bot Token yahan set hai
+TOKEN = "8309787768:AAGSFievo0aMG_s8433xSZ2txAjT8Dxn948"
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start', 'help'])
@@ -103,9 +103,9 @@ def download_media(message):
         bot.edit_message_text(f"❌ Error: {str(e)}", message.chat.id, msg.message_id)
 
 if __name__ == "__main__":
-    # Web server ko background thread mein chalana taaki port error na aaye
     t = threading.Thread(target=run_web)
     t.start()
     
     print("Multi-tool Bot is running...")
     bot.infinity_polling()
+    

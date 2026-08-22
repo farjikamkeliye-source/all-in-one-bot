@@ -4,7 +4,7 @@ import telebot
 import yt_dlp
 
 # Aapka Telegram Bot Token
-TOKEN = "8852793555:AAHeGoB66uD-R0_J37z4KOsBsunag2_Xwd4"
+TOKEN = "8309787768:AAGSFievo0aMG_s8433xSZ2txAjT8Dxn948"
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start', 'help'])

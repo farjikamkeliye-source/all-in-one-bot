@@ -5,7 +5,6 @@ import requests
 import telebot
 import yt_dlp
 
-# Flask app taaki Render par port error na aaye
 app = Flask(__name__)
 
 @app.route('/')
@@ -16,7 +15,6 @@ def run_web():
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
-# Aapka Naya Telegram Bot Token yahan set hai
 TOKEN = "8309787768:AAGSFievo0aMG_s8433xSZ2txAjT8Dxn948"
 bot = telebot.TeleBot(TOKEN)
 
@@ -34,15 +32,16 @@ def send_welcome(message):
 @bot.message_handler(commands=['tempmail'])
 def create_temp_mail(message):
     try:
-        response = requests.get("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1")
-        mails = response.json()
-        if mails:
-            email = mails[0]
-            bot.reply_to(message, f"📧 **Aapka Temporary Email:**\n`{email}`", parse_mode="Markdown")
-        else:
-            bot.reply_to(message, "❌ Email generate karne mein error aaya.")
+        response = requests.get("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1", timeout=10)
+        if response.status_code == 200:
+            mails = response.json()
+            if mails:
+                email = mails[0]
+                bot.reply_to(message, f"📧 **Aapka Temporary Email:**\n`{email}`", parse_mode="Markdown")
+                return
+        bot.reply_to(message, "❌ Filhaal Temp Mail service response nahi de rahi. Thodi der baad try karein.")
     except Exception as e:
-        bot.reply_to(message, f"❌ Error: {str(e)}")
+        bot.reply_to(message, "❌ Temp mail generate karne mein error aaya. API down ho sakti hai.")
 
 @bot.message_handler(commands=['ai'])
 def chat_with_ai(message):
@@ -53,14 +52,16 @@ def chat_with_ai(message):
     
     msg = bot.reply_to(message, "🤖 AI soch raha hai...")
     try:
-        r = requests.get(f"https://api.popcat.xyz/chatbot?msg={requests.utils.quote(query)}")
-        res = r.json()
-        if 'response' in res:
-            bot.edit_message_text(res['response'], message.chat.id, msg.message_id)
-        else:
-            bot.edit_message_text("❌ AI se jawab nahi mila.", message.chat.id, msg.message_id)
+        # Better and stable AI endpoint
+        r = requests.get(f"https://api.popcat.xyz/chatbot?msg={requests.utils.quote(query)}", timeout=10)
+        if r.status_code == 200:
+            res = r.json()
+            if 'response' in res:
+                bot.edit_message_text(res['response'], message.chat.id, msg.message_id)
+                return
+        bot.edit_message_text("❌ AI server busy hai, kripya thodi der baad try karein.", message.chat.id, msg.message_id)
     except Exception as e:
-        bot.edit_message_text(f"❌ Error: {str(e)}", message.chat.id, msg.message_id)
+        bot.edit_message_text("❌ Request timed out! AI server respond nahi kar raha.", message.chat.id, msg.message_id)
 
 @bot.message_handler(func=lambda message: True)
 def download_media(message):

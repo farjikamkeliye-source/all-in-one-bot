@@ -29,19 +29,80 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
+# Mail.tm API ka use karke Temp Mail feature
 @bot.message_handler(commands=['tempmail'])
 def create_temp_mail(message):
     try:
-        response = requests.get("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1", timeout=10)
-        if response.status_code == 200:
-            mails = response.json()
-            if mails:
-                email = mails[0]
-                bot.reply_to(message, f"📧 **Aapka Temporary Email:**\n`{email}`", parse_mode="Markdown")
-                return
-        bot.reply_to(message, "❌ Filhaal Temp Mail service response nahi de rahi. Thodi der baad try karein.")
+        # 1. Pehle available domain fetch karte hain
+        res = requests.get("https://api.mail.tm/domains", timeout=10)
+        if res.status_code != 200:
+            bot.reply_to(message, "❌ Temp mail service abhi busy hai.")
+            return
+        
+        domains = res.json().get('hydra:member', [])
+        if not domains:
+            bot.reply_to(message, "❌ Koi domain available nahi hai.")
+            return
+        
+        domain = domains[0]['domain']
+        
+        # 2. Random email aur password create karte hain
+        import random, string
+        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        email = f"{username}@{domain}"
+        password = "Password@123"
+        
+        create_res = requests.post("https://api.mail.tm/accounts", json={"address": email, "password": password}, timeout=10)
+        
+        if create_res.status_code in [200, 201]:
+            reply_msg = (
+                f"📧 **Aapka Temporary Email:**\n`{email}`\n\n"
+                f"🔑 **Password:** `{password}`\n\n"
+                f"📥 Inbox check karne ke liye yeh command bhejein:\n"
+                f"`/check {email} {password}`"
+            )
+            bot.reply_to(message, reply_msg, parse_mode="Markdown")
+        else:
+            bot.reply_to(message, "❌ Email generate karne mein error aaya.")
     except Exception as e:
-        bot.reply_to(message, "❌ Temp mail generate karne mein error aaya. API down ho sakti hai.")
+        bot.reply_to(message, f"❌ Error: {str(e)}")
+
+# Temp Mail Inbox Check karne ke liye
+@bot.message_handler(commands=['check'])
+def check_mail_inbox(message):
+    try:
+        parts = message.text.split()
+        if len(parts) < 3:
+            bot.reply_to(message, "❌ Sahi format use karein:\n`/check email@domain.com password`", parse_mode="Markdown")
+            return
+        
+        email = parts[1]
+        password = parts[2]
+        
+        # Token generate karte hain login karke
+        token_res = requests.post("https://api.mail.tm/token", json={"address": email, "password": password}, timeout=10)
+        if token_res.status_code != 200:
+            bot.reply_to(message, "❌ Login failed! Email ya password galat ho sakta hai.")
+            return
+        
+        token = token_res.json().get('token')
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Messages fetch karte hain
+        msg_res = requests.get("https://api.mail.tm/messages", headers=headers, timeout=10)
+        if msg_res.status_code == 200:
+            messages = msg_res.json().get('hydra:member', [])
+            if not messages:
+                bot.reply_to(message, "📭 Aapka inbox khali hai! Koi naya mail nahi aaya.")
+            else:
+                text = "📥 **Aapke Inbox Messages:**\n\n"
+                for m in messages:
+                    text += f"✉️ **From:** {m['from']['address']}\n📌 **Subject:** {m['subject']}\n\n"
+                bot.reply_to(message, text, parse_mode="Markdown")
+        else:
+            bot.reply_to(message, "❌ Messages laane mein error aaya.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error: {str(e)}")
 
 @bot.message_handler(commands=['ai'])
 def chat_with_ai(message):
@@ -52,7 +113,6 @@ def chat_with_ai(message):
     
     msg = bot.reply_to(message, "🤖 AI soch raha hai...")
     try:
-        # Better and stable AI endpoint
         r = requests.get(f"https://api.popcat.xyz/chatbot?msg={requests.utils.quote(query)}", timeout=10)
         if r.status_code == 200:
             res = r.json()
